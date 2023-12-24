@@ -7,76 +7,72 @@ import getImages from '../service/api';
 import Button from './Button/Button';
 import Loader from './Loader/Loader';
 import css from './App.module.css'
-
-class App extends React.Component {
-state = {
-  query: '',
-  images: [],
-  page: 1,
-  isLoading:false,
-  error: null,
-  isVisible:false,
-  isEmpty: false,
-}
+import { useEffect, useState } from 'react';
 
 
- componentDidUpdate(prevProps, prevState){
-    const {page, query} = this.state;
-    if (prevState.query !== query || prevState.page !== page) {
-      this.getPhotos(query, page);
+  export default function App() {
+    const [query, setQuery] = useState('');
+    const [images, setImages] = useState([]);
+    const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [btnShow, setBtnShow] = useState(false);
+    const [empty, setEmpty] = useState(false);
+
+ 
+useEffect(() => {
+  const fetchData = async () => {
+    if (!query) return;
+    try{
+      setLoading(true);
+      const resp = await getImages(query,page);
+      if (resp.hits.length === 0) {
+        setEmpty(true)
+      }
+    setImages(prevState => [...prevState, ...resp.hits]);
+    setBtnShow(page < Math.ceil(resp.totalHits / 12));
+    }catch{
+setError('something wrong(')
+    }finally{
+setLoading(false);
     }
   }
-  
-getPhotos = async(query, page) => {
-  if (!query) return
-  this.setState({isLoading:true})
-  
-  try {
-    const {hits, totalHits} = await getImages(query, page)
-    if (hits.length === 0) {
-      this.setState({isEmpty:true})
-    }
-    this.setState(prevState => ({images:[...prevState.images, ...hits], 
-      isVisible:this.state.page < Math.ceil(totalHits / 12)}))
-  } catch (error) {
-    this.setState({error: "something wrong("})
-  } finally{
-    this.setState({isLoading:false})
-  }
-  }
-  
+ fetchData();
+}, [query,page]);
 
-onLoadMore = () => {
-    this.setState(prevState => ({page: prevState.page + 1}))
+
+
+const onLoadMore = () => {
+  setPage(prevState =>  prevState + 1)
   }
 
 
-handleInputName = searchQuery => {
-  this.setState({ query: searchQuery, page:1 , images:[], error:null, isEmpty:false});
+const handleInputName = query => {
+   setEmpty(false);
+     setError(null);
+     setImages([]);
+     setPage(1);
+     setBtnShow(false);
+  setQuery(query);
 };
 
 
 
-  render(){
-    const {images, isVisible, isEmpty, error, isLoading} = this.state;
+
     return (
       <div>
 
-<Searchbar onInput={this.handleInputName}/>
+<Searchbar onInput={handleInputName}/>
 {images.length > 0 && <ImageGallery images={images} />}
-{isLoading && <Loader />}
-{error && <p textAlign="center" className={css.text}>❌ Something went wrong - {error}</p>}
-{isEmpty && <p textAlign="center" className={css.text}>Sorry. There are no images ... 😭</p>}
+{loading && <Loader />}
+{error && <p  className={css.text}>❌ Something went wrong - {error}</p>}
+{empty && <p  className={css.text}>Sorry. There are no images ... 😭</p>}
 
-{isVisible && !isLoading && images.length > 0 && <Button onClick={this.onLoadMore}> 
-{isLoading ? <Loader /> : 'load more'}
- </Button>}
+{btnShow  &&<Button onClick={onLoadMore} />}
 
 <ToastContainer autoClose={2000}/>
       </div>
     )
   }
-}
 
 
-export default App;
